@@ -2,3 +2,4 @@ discord.py[voice]
 yt-dlp
 imageio-ffmpeg
 aiohttp
+gTTS
