@@ -243,7 +243,7 @@ HELP_CATS = {
     "💰 Economy": ["balance", "daily", "work", "gamble", "slots", "give", "leaderboard"],
     "📈 Level": ["rank", "top"],
     "🎮 Fun": ["8ball", "joke", "dice", "coinflip", "rps", "choose", "ship", "rate", "hug", "slap", "reverse", "meme", "trivia"],
-    "🧰 Utility": ["help", "ping", "userinfo", "serverinfo", "avatar", "poll", "remind", "say", "calc", "botinfo"],
+    "🧰 Utility": ["help", "ping", "userinfo", "serverinfo", "avatar", "poll", "remind", "say", "calc", "botinfo", "dashboard"],
     "⚙️ Setup": ["setwelcome", "setautorole", "setlog", "ticketpanel"],
 }
 
@@ -1227,6 +1227,15 @@ async def c_botinfo(i: discord.Interaction):
     await i.response.send_message(embed=e)
 
 
+@cmd("dashboard", "Bot ka web dashboard kholo")
+async def c_dashboard(i: discord.Interaction):
+    url = os.getenv("SITE_URL", "https://ZenixPlayz.github.io/aura-site").rstrip("/") + "/"
+    v = discord.ui.View()
+    v.add_item(discord.ui.Button(label="Dashboard kholo", emoji="🚀", style=discord.ButtonStyle.link, url=url))
+    e = emb("🚀 Bot Dashboard", "Discord se login karke apne server ki settings, leaderboard aur announcements manage karo.\n*Sirf Administrator wale hi manage kar sakte hain.*", 0x7C5CFF)
+    await i.response.send_message(embed=e, view=v)
+
+
 # ================== SETUP / TICKETS ==================
 @cmd("setwelcome", "Welcome/goodbye channel set karo")
 @app_commands.guild_only()
@@ -1626,7 +1635,7 @@ async def a_me(request):
     if not s:
         return jr({"error": "login"}, 401)
     u = s["user"]
-    return jr({"user": {"name": u.get("global_name") or u.get("username")},
+    return jr({"user": {"name": u.get("global_name") or u.get("username"), "avatar": f"https://cdn.discordapp.com/avatars/{u['id']}/{u['avatar']}.png?size=64" if u.get("avatar") else None},
                "guilds": [{"id": str(g.id), "name": g.name, "icon": g.icon.url if g.icon else None, "members": g.member_count}
                           for g in manageable(s)]})
 
@@ -1645,7 +1654,7 @@ async def a_guild(request):
     rows = db.execute("SELECT u,n FROM daily WHERE g=? AND d=? ORDER BY n DESC LIMIT 10", (g.id, day)).fetchall()
     tot = db.execute("SELECT COALESCE(SUM(n),0),COUNT(*) FROM daily WHERE g=? AND d=?", (g.id, day)).fetchone()
     wl = db.execute("SELECT u,reason,ts FROM warns WHERE g=? ORDER BY id DESC LIMIT 10", (g.id,)).fetchall()
-    return jr({"name": g.name, "members": g.member_count,
+    return jr({"name": g.name, "members": g.member_count, "icon": g.icon.url if g.icon else None,
                "channels": [{"id": str(c.id), "name": c.name} for c in g.text_channels],
                "roles": [{"id": str(r.id), "name": r.name} for r in assignable(g)],
                "settings": {k: str(get_set(g.id, k) or "") for k in ("welcome", "autorole", "log")},
@@ -1715,7 +1724,7 @@ async def a_announce(request):
 @web.middleware
 async def cors(request, handler):
     p = urlparse(os.getenv("SITE_URL", ""))
-    allowed_origin = f"{p.scheme}://{p.netloc}" if p.netloc else None
+    allowed_origin = f"{p.scheme}://{p.netloc}".lower() if p.netloc else None
     if request.method == "OPTIONS":
         resp = web.Response(status=204)
     else:
